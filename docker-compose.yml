@@ -1,0 +1,13 @@
+services:
+  eval:
+    image: python:3.12-slim
+    working_dir: /l08
+    entrypoint: ["python", "run_dialog.py"]
+    command: []
+    volumes:
+      - .:/l08
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      SERVICE_URL: ${EVAL_STAND_URL:-http://host.docker.internal:8000}
+    extra_hosts:
+      - host.docker.internal:host-gateway

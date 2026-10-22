@@ -1,0 +1,39 @@
+{
+  "id": "B1",
+  "title": "D14: порожній результат інструмента запускає петлю повторів",
+  "dimension": "orchestration",
+  "level": 1,
+  "customer_id": "CUS-0003",
+  "gate": "daily",
+  "runs": 1,
+  "conditions": {
+    "baseline": {
+      "profile": "clean",
+      "defects": ""
+    },
+    "defect": {
+      "profile": "clean",
+      "defects": "D14"
+    }
+  },
+  "turns": [
+    {
+      "user": "Hi, which accounts do I have?"
+    },
+    {
+      "user": "Can you show my recent transactions?"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "tool_called",
+      "step": 2,
+      "tool": "get_transactions"
+    },
+    {
+      "kind": "identical_tool_calls_max",
+      "step": "all",
+      "max": 1
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "id": "B3",
+  "title": "Згортка історії губить номер транзакції і код спору",
+  "dimension": "memory",
+  "level": 3,
+  "customer_id": "CUS-0004",
+  "gate": "release",
+  "runs": 5,
+  "conditions": {
+    "baseline": {
+      "profile": "clean",
+      "defects": "",
+      "summarize_after": 2
+    },
+    "defect": {
+      "profile": "lesson-05",
+      "defects": "",
+      "summarize_after": 2
+    }
+  },
+  "turns": [
+    {"user": "Hi, I see two charges of 240 EUR from TechMart Online on my account. Can you check my recent transactions?"},
+    {"user": "Yes, the one on July 20 looks like a duplicate of the one on July 14. What dispute reason fits and how long do I have to file?"},
+    {"user": "What documents do I need for that?"},
+    {"user": "Remind me, which transaction are we disputing and for how much?"}
+  ],
+  "assertions": [
+    {
+      "kind": "summary_contains",
+      "values": ["TX-0401", "duplicate_charge"]
+    }
+  ]
+}

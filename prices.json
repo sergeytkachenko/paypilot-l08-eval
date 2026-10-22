@@ -1,0 +1,10 @@
+{
+  "checked_on": "2026-10-08",
+  "unit": "USD per million tokens",
+  "cache_read_factor": 0.1,
+  "cache_write_factor": 1.25,
+  "models": {
+    "anthropic/claude-haiku-5.5": {"input": 0.10, "output": 0.50},
+    "claude-haiku-5-5": {"input": 0.10, "output": 0.50}
+  }
+}

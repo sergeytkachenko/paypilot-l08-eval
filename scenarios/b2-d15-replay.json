@@ -1,0 +1,35 @@
+{
+  "id": "B2",
+  "title": "D15: історія інструментів перечитується на кожному кроці",
+  "dimension": "cost",
+  "level": 2,
+  "customer_id": "CUS-0004",
+  "gate": "release",
+  "runs": 5,
+  "conditions": {
+    "baseline": {
+      "profile": "clean",
+      "defects": ""
+    },
+    "defect": {
+      "profile": "lesson-08",
+      "defects": ""
+    }
+  },
+  "turns": [
+    {"user": "Hi, I see two charges of 240 EUR from TechMart Online on my account. Can you check my recent transactions?"},
+    {"user": "Yes, the one on July 20 looks like a duplicate of the one on July 14. What dispute reason fits and how long do I have to file?"},
+    {"user": "What documents do I need for that?"},
+    {"user": "Is my card still safe to use meanwhile?"},
+    {"user": "Remind me, which transaction are we disputing and for how much?"},
+    {"user": "And what was the filing window again?"},
+    {"user": "OK, please open the dispute."}
+  ],
+  "assertions": [
+    {
+      "kind": "first_call_input_tokens_max",
+      "step": 6,
+      "max": 6500
+    }
+  ]
+}
