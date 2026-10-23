@@ -121,6 +121,20 @@ def run_once(scenario, settings, prices):
     return rows
 
 
+AGGREGATE_KINDS = {"first_call_input_tokens_median_max"}
+
+
+def check_aggregate(assertion, results):
+    kind = assertion["kind"]
+    if kind == "first_call_input_tokens_median_max":
+        step = assertion["step"]
+        values = [r["steps"][step - 1]["first_call_input"] for r in results]
+        median = statistics.median(values)
+        return median <= assertion["max"], \
+            f"step {step}: median first-call input of {len(values)} run(s) is {median:g} (runs {sorted(values)}), max {assertion['max']}"
+    raise RunError(f"unknown aggregate assertion kind {kind!r}")
+
+
 def _steps(assertion, rows):
     step = assertion.get("step", "all")
     return rows if step == "all" else [rows[step - 1]]
@@ -238,20 +252,28 @@ def with_overrides(settings, model, reasoning):
 
 def run(scenario, condition, settings, runs, prices, show_table, prompt_step=None):
     results = []
+    per_run = [a for a in scenario["assertions"] if a["kind"] not in AGGREGATE_KINDS]
     for n in range(1, runs + 1):
         rows = run_with_retry(scenario, settings, prices)
-        verdicts = [(a, *check(a, rows)) for a in scenario["assertions"]]
+        verdicts = [(a, *check(a, rows)) for a in per_run]
         passed = all(v[1] for v in verdicts)
         results.append({"run": n, "passed": passed, "steps": rows,
                         "verdicts": [{"kind": a["kind"], "ok": ok, "detail": d} for a, ok, d in verdicts]})
-        print(f"{scenario['id']} {condition:<8} run {n} {'PASS' if passed else 'FAIL'}")
+        verdict = ("PASS" if passed else "FAIL") if per_run else ""
+        print(f"{scenario['id']} {condition:<8} run {n} {verdict}".rstrip())
         if show_table:
             print(table(rows))
         if prompt_step is not None and n == 1:
             show_prompt(rows, prompt_step)
         for a, ok, d in verdicts:
             print(f"    {'ok ' if ok else 'BAD'} {a['kind']}: {d}")
-    return results
+    aggregates = []
+    for a in scenario["assertions"]:
+        if a["kind"] in AGGREGATE_KINDS:
+            ok, d = check_aggregate(a, results)
+            aggregates.append({"kind": a["kind"], "ok": ok, "detail": d})
+            print(f"  {'ok ' if ok else 'BAD'} {a['kind']}: {d}")
+    return results, aggregates
 
 
 def strip_prompts(results):
@@ -283,11 +305,14 @@ def run_matrix(matrix, scenarios, args, prices):
                     continue
                 effective = with_overrides(settings, model, args.reasoning)
                 print(f"\n-- {model} · {sid} · {condition}")
-                results = run(scenario, condition, effective, runs, prices, False)
+                results, aggregates = run(scenario, condition, effective, runs, prices, False)
                 low, high = _spread(results, "trace_cost_usd")
+                verdict = ("PASS" if all(a["ok"] for a in aggregates) else "FAIL") if aggregates \
+                    else f"{sum(r['passed'] for r in results)}/{len(results)}"
                 cells.append({
                     "model": model, "scenario": sid, "condition": condition, "settings": effective,
-                    "passed": sum(r["passed"] for r in results), "runs": len(results),
+                    "passed": sum(r["passed"] for r in results), "runs": len(results), "verdict": verdict,
+                    "aggregates": aggregates,
                     "cost_usd_median": round(_median(results, "trace_cost_usd"), 6),
                     "cost_usd_min": round(low, 6), "cost_usd_max": round(high, 6),
                     "provider_usd_median": round(_median(results, "provider_cost_usd"), 6),
@@ -302,7 +327,7 @@ def run_matrix(matrix, scenarios, args, prices):
         dialog = f"{c['cost_usd_median']} ({c['cost_usd_min']}-{c['cost_usd_max']})"
         print(f"  {c['model']:<30} {c['scenario']:<8} {c['condition']:<9} {dialog:<32} "
               f"{c['provider_usd_median']:>10} {c['time_ms_median'] / 1000:>7.1f} "
-              f"{str(c['passed']) + '/' + str(c['runs']):>8} "
+              f"{c['verdict']:>8} "
               f"{int(c['input_tokens_median'])} / {int(c['output_tokens_median'])}")
     print("  * tokenizers differ: tokens of two models are not comparable one to one")
     return cells
@@ -354,14 +379,20 @@ def main():
                     continue
                 runs = args.runs or (scenario.get("runs", 1) if args.gate else 1)
                 effective = with_overrides(settings, args.model, args.reasoning)
-                results = run(scenario, condition, effective, runs, prices, args.table, args.show_prompt)
+                results, aggregates = run(scenario, condition, effective, runs, prices, args.table, args.show_prompt)
                 medians[condition] = (_median(results, "input_tokens"), _median(results, "duration_ms"),
                                       _median(results, "trace_cost_usd"))
-                print(f"   {condition}: {sum(r['passed'] for r in results)}/{len(results)} passed; "
-                      f"median {medians[condition][0]} input tokens, {medians[condition][1]} ms, "
-                      f"${round(medians[condition][2], 6)}")
+                if aggregates:
+                    outcome = "PASS" if all(a["ok"] for a in aggregates) else "FAIL"
+                    print(f"   {condition}: {outcome} on the median of {len(results)} run(s); "
+                          f"median {medians[condition][0]} input tokens, {medians[condition][1]} ms, "
+                          f"${round(medians[condition][2], 6)}")
+                else:
+                    print(f"   {condition}: {sum(r['passed'] for r in results)}/{len(results)} passed; "
+                          f"median {medians[condition][0]} input tokens, {medians[condition][1]} ms, "
+                          f"${round(medians[condition][2], 6)}")
                 report.append({"scenario": scenario["id"], "condition": condition,
-                               "settings": effective, "runs": strip_prompts(results)})
+                               "settings": effective, "aggregates": aggregates, "runs": strip_prompts(results)})
             if "baseline" in medians and "defect" in medians:
                 b, d = medians["baseline"], medians["defect"]
                 print(f"   defect / baseline: tokens x{d[0] / b[0]:.2f}, time x{d[1] / b[1]:.2f}, "

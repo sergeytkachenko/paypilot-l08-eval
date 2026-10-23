@@ -27,7 +27,7 @@
   ],
   "assertions": [
     {
-      "kind": "first_call_input_tokens_max",
+      "kind": "first_call_input_tokens_median_max",
       "step": 6,
       "max": 6500
     }
