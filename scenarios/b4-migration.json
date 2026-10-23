@@ -1,0 +1,14 @@
+{
+  "id": "B4",
+  "title": "Міграція моделі: B1 і B2 на google/gemini-2.5-flash і anthropic/claude-haiku-5.5",
+  "dimension": "cost",
+  "level": 2,
+  "gate": "release",
+  "runs": 5,
+  "matrix": {
+    "from": "google/gemini-2.5-flash",
+    "to": "anthropic/claude-haiku-5.5",
+    "scenarios": ["B1", "B2"],
+    "runs": 5
+  }
+}
